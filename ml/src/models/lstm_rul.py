@@ -14,6 +14,24 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 
+try:
+    from tqdm.auto import tqdm
+except ModuleNotFoundError:
+    class tqdm:  # type: ignore[no-redef]
+        """Minimal fallback so tests/imports work before installing tqdm."""
+
+        def __init__(self, iterable, *args, **kwargs) -> None:
+            self.iterable = iterable
+
+        def __iter__(self):
+            return iter(self.iterable)
+
+        def set_postfix(self, *args, **kwargs) -> None:
+            return None
+
+        def write(self, message: str) -> None:
+            print(message)
+
 from src.data import get_training_data
 from src.evaluation import RegressionMetrics, evaluate_rul
 from src.models.registry import DEFAULT_REGISTRY_ROOT
@@ -41,6 +59,7 @@ class SequenceModelConfig:
     random_state: int = 42
     rul_cap: int = 125
     rolling_windows: tuple[int, ...] = (5, 10)
+    show_progress: bool = True
 
 
 @dataclass(frozen=True)
@@ -147,13 +166,16 @@ def _run_epoch(
     criterion: nn.Module,
     device: torch.device,
     optimizer: torch.optim.Optimizer | None = None,
+    description: str = "epoch",
+    show_progress: bool = True,
 ) -> float:
     is_training = optimizer is not None
     model.train(is_training)
     total_loss = 0.0
     total_examples = 0
 
-    for windows, targets in loader:
+    progress = tqdm(loader, desc=description, leave=False, disable=not show_progress)
+    for windows, targets in progress:
         windows = windows.to(device)
         targets = targets.to(device)
         if is_training:
@@ -168,17 +190,24 @@ def _run_epoch(
         batch_size = len(targets)
         total_loss += float(loss.item()) * batch_size
         total_examples += batch_size
+        progress.set_postfix(loss=f"{float(loss.item()):.4f}")
 
     return total_loss / max(total_examples, 1)
 
 
-def _predict(model: nn.Module, windows: np.ndarray, batch_size: int, device: torch.device) -> np.ndarray:
+def _predict(
+    model: nn.Module,
+    windows: np.ndarray,
+    batch_size: int,
+    device: torch.device,
+    show_progress: bool = True,
+) -> np.ndarray:
     model.eval()
     dataset = RulSequenceDataset(windows, np.zeros(len(windows), dtype=np.float32))
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     predictions: list[np.ndarray] = []
     with torch.no_grad():
-        for batch_windows, _ in loader:
+        for batch_windows, _ in tqdm(loader, desc="predict", leave=False, disable=not show_progress):
             batch_predictions = model(batch_windows.to(device)).cpu().numpy().reshape(-1)
             predictions.append(batch_predictions)
     return np.concatenate(predictions)
@@ -308,9 +337,29 @@ def train_sequence_model(
     epochs_without_improvement = 0
     history: list[dict[str, float]] = []
 
-    for epoch in range(1, config.max_epochs + 1):
-        train_loss = _run_epoch(model, train_loader, criterion, device, optimizer=optimizer)
-        validation_loss = _run_epoch(model, validation_loader, criterion, device)
+    epoch_progress = tqdm(
+        range(1, config.max_epochs + 1),
+        desc=f"{config.model_type.upper()} training",
+        disable=not config.show_progress,
+    )
+    for epoch in epoch_progress:
+        train_loss = _run_epoch(
+            model,
+            train_loader,
+            criterion,
+            device,
+            optimizer=optimizer,
+            description=f"epoch {epoch} train",
+            show_progress=config.show_progress,
+        )
+        validation_loss = _run_epoch(
+            model,
+            validation_loader,
+            criterion,
+            device,
+            description=f"epoch {epoch} val",
+            show_progress=config.show_progress,
+        )
         scheduler.step(validation_loss)
         learning_rate = float(optimizer.param_groups[0]["lr"])
         history.append(
@@ -321,6 +370,12 @@ def train_sequence_model(
                 "learning_rate": learning_rate,
             }
         )
+        epoch_progress.set_postfix(
+            train=f"{train_loss:.4f}",
+            val=f"{validation_loss:.4f}",
+            best=f"{best_validation_loss:.4f}",
+            lr=f"{learning_rate:.2e}",
+        )
 
         if validation_loss < best_validation_loss:
             best_validation_loss = validation_loss
@@ -330,6 +385,8 @@ def train_sequence_model(
             epochs_without_improvement += 1
 
         if epochs_without_improvement >= config.patience:
+            if config.show_progress:
+                epoch_progress.write(f"Early stopping after epoch {epoch}. Best validation loss: {best_validation_loss:.4f}")
             break
 
     model.load_state_dict(best_state)
@@ -338,7 +395,7 @@ def train_sequence_model(
         training_data.y_test_windows,
         training_data.test_window_metadata,
     )
-    predictions = _predict(model, final_test_windows, config.batch_size, device)
+    predictions = _predict(model, final_test_windows, config.batch_size, device, show_progress=config.show_progress)
     metrics = evaluate_rul(final_test_targets, predictions)
 
     artifact_path = ""
@@ -385,6 +442,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=None, help="Optional torch device override, e.g. cpu or cuda.")
     parser.add_argument("--no-save", action="store_true")
     parser.add_argument("--no-results", action="store_true")
+    parser.add_argument("--quiet", action="store_true", help="Disable tqdm progress bars.")
     return parser.parse_args()
 
 
@@ -402,6 +460,7 @@ def main() -> None:
         batch_size=args.batch_size,
         max_epochs=args.max_epochs,
         patience=args.patience,
+        show_progress=not args.quiet,
     )
     result = train_sequence_model(
         config=config,

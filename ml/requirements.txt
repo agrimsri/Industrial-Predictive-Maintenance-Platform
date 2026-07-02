@@ -4,6 +4,7 @@ scikit-learn
 xgboost
 torch
 joblib
+tqdm
 matplotlib
 seaborn
 jupyter

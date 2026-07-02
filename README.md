@@ -200,6 +200,7 @@ Implemented components:
 - The trainer reuses the Milestone 1.2 `get_training_data()` window outputs.
 - Evaluation uses the final available test window per engine, so the score lines up with the official C-MAPSS test RUL target.
 - Training includes early stopping, gradient clipping, AdamW, and `ReduceLROnPlateau` scheduling.
+- Training displays `tqdm` progress bars for epochs, train batches, validation batches, and prediction.
 - Checkpoints are saved as `model.pt` with JSON metadata under `ml/models/registry/lstm_rul/` or `ml/models/registry/gru_rul/`.
 - `02_train_lstm_colab.ipynb` provides a GPU-friendly notebook workflow.
 
