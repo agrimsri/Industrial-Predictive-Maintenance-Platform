@@ -166,16 +166,13 @@ def _run_epoch(
     criterion: nn.Module,
     device: torch.device,
     optimizer: torch.optim.Optimizer | None = None,
-    description: str = "epoch",
-    show_progress: bool = True,
 ) -> float:
     is_training = optimizer is not None
     model.train(is_training)
     total_loss = 0.0
     total_examples = 0
 
-    progress = tqdm(loader, desc=description, leave=False, disable=not show_progress)
-    for windows, targets in progress:
+    for windows, targets in loader:
         windows = windows.to(device)
         targets = targets.to(device)
         if is_training:
@@ -190,7 +187,6 @@ def _run_epoch(
         batch_size = len(targets)
         total_loss += float(loss.item()) * batch_size
         total_examples += batch_size
-        progress.set_postfix(loss=f"{float(loss.item()):.4f}")
 
     return total_loss / max(total_examples, 1)
 
@@ -200,14 +196,13 @@ def _predict(
     windows: np.ndarray,
     batch_size: int,
     device: torch.device,
-    show_progress: bool = True,
 ) -> np.ndarray:
     model.eval()
     dataset = RulSequenceDataset(windows, np.zeros(len(windows), dtype=np.float32))
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     predictions: list[np.ndarray] = []
     with torch.no_grad():
-        for batch_windows, _ in tqdm(loader, desc="predict", leave=False, disable=not show_progress):
+        for batch_windows, _ in loader:
             batch_predictions = model(batch_windows.to(device)).cpu().numpy().reshape(-1)
             predictions.append(batch_predictions)
     return np.concatenate(predictions)
@@ -349,16 +344,12 @@ def train_sequence_model(
             criterion,
             device,
             optimizer=optimizer,
-            description=f"epoch {epoch} train",
-            show_progress=config.show_progress,
         )
         validation_loss = _run_epoch(
             model,
             validation_loader,
             criterion,
             device,
-            description=f"epoch {epoch} val",
-            show_progress=config.show_progress,
         )
         scheduler.step(validation_loss)
         learning_rate = float(optimizer.param_groups[0]["lr"])
@@ -395,7 +386,7 @@ def train_sequence_model(
         training_data.y_test_windows,
         training_data.test_window_metadata,
     )
-    predictions = _predict(model, final_test_windows, config.batch_size, device, show_progress=config.show_progress)
+    predictions = _predict(model, final_test_windows, config.batch_size, device)
     metrics = evaluate_rul(final_test_targets, predictions)
 
     artifact_path = ""
