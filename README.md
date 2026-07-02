@@ -216,21 +216,25 @@ Colab FD001 results:
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | LSTM | `20260702T102020Z` | 30 | 16.3312 | 11.9987 | 0.8339 | 835.6180 |
 | LSTM | `20260702T103659Z` | 100 | 16.5961 | 12.6642 | 0.8285 | 815.3898 |
+| GRU | `20260702T111034Z` | 100 | 15.5333 | 11.4046 | 0.8497 | 545.8152 |
 
 Findings:
 
-- The LSTM beats the current Random Forest baseline on FD001 across the main metrics. Random Forest had RMSE `18.1382`, MAE `12.6108`, R2 `0.7951`, and NASA score `1084.3293`.
-- The `20260702T102020Z` LSTM run is best by RMSE, MAE, and R2: RMSE improved from `18.1382` to `16.3312`.
-- The `20260702T103659Z` LSTM run is best by NASA score: NASA score improved from `1084.3293` to `815.3898`.
-- This is a useful industrial trade-off: the 30-epoch run is more accurate on average, while the 100-epoch run is better under the asymmetric NASA penalty that punishes risky late predictions more.
-- Both runs used `window_size=30`, `hidden_size=64`, `num_layers=2`, `dropout=0.2`, `batch_size=128`, and the same 73 engineered sequence features from Milestone 1.2.
+- Both sequence models beat the Random Forest baseline on FD001. Random Forest had RMSE `18.1382`, MAE `12.6108`, R2 `0.7951`, and NASA score `1084.3293`.
+- GRU is the current overall FD001 leader, with the best RMSE, MAE, R2, and NASA score in the project so far.
+- Among LSTM runs, `20260702T102020Z` is best by RMSE, MAE, and R2: RMSE improved from the Random Forest baseline `18.1382` to `16.3312`.
+- Among LSTM runs, `20260702T103659Z` is best by NASA score: NASA score improved from the Random Forest baseline `1084.3293` to `815.3898`.
+- The GRU run improved RMSE from the best LSTM value `16.3312` to `15.5333`, and improved NASA score from the best LSTM value `815.3898` to `545.8152`.
+- The LSTM runs showed a useful industrial trade-off: the 30-epoch run was better on average accuracy, while the 100-epoch run was better under the asymmetric NASA penalty. The GRU removed that trade-off in this experiment by winning on both accuracy and NASA score.
+- All sequence runs used `window_size=30`, `hidden_size=64`, `num_layers=2`, `dropout=0.2`, `batch_size=128`, and the same 73 engineered sequence features from Milestone 1.2.
 
-Saved LSTM metadata versions:
+Saved sequence metadata versions:
 
 - Best RMSE/MAE/R2 run: `ml/models/registry/lstm_rul/FD001/20260702T102020Z/`
-- Best NASA score run: `ml/models/registry/lstm_rul/FD001/20260702T103659Z/`
+- Best LSTM NASA score run: `ml/models/registry/lstm_rul/FD001/20260702T103659Z/`
+- Best overall sequence run: `ml/models/registry/gru_rul/FD001/20260702T111034Z/`
 
-The main lesson from this milestone is that sequence learning is already adding value over the classic tabular baseline. The next milestone should test whether a transformer-style time-series model can keep or improve this accuracy while changing the training/inference cost profile.
+The main lesson from this milestone is that sequence learning is clearly adding value over the classic tabular baseline, and GRU is currently the strongest Phase 1 model. The next milestone should test whether a transformer-style time-series model can beat the GRU result or offer a better accuracy/cost trade-off.
 
 ## The Data Pipeline Explained Simply
 
