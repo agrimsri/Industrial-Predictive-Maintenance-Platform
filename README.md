@@ -2,7 +2,7 @@
 
 This repository is a portfolio-grade predictive maintenance platform. The goal is not only to train a model on a notebook dataset, but to build the project the way an industrial machine learning system would grow in practice: data pipelines first, then model training, then model serving, backend persistence, and finally a dashboard.
 
-Current progress: milestones 0.1 through 1.2 are implemented. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, and a reusable feature engineering pipeline that turns raw turbofan sensor logs into model-ready training data.
+Current progress: milestones 0.1 through 1.3 are implemented. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, and saved model artifacts with metadata.
 
 ## What Problem This Project Solves
 
@@ -38,7 +38,7 @@ ML pipeline in /ml
   - train models
         |
         v
-Model registry in /ml/models/registry        (planned)
+Model registry in /ml/models/registry
         |
         v
 Serving API in /serving                       (planned)
@@ -69,7 +69,7 @@ ml/         Data acquisition, EDA, feature engineering, and future model trainin
 serving/    Standalone model-serving API, planned for Phase 2
 ```
 
-Important files through Milestone 1.2:
+Important files through Milestone 1.3:
 
 ```text
 ROADMAP.md                         Technical milestone plan
@@ -83,7 +83,14 @@ ml/src/data/cmapss_loader.py        Raw C-MAPSS parser and training-data entry p
 ml/src/data/rul_labeling.py         RUL target computation
 ml/src/data/feature_engineering.py  Sensor filtering, rolling features, normalization
 ml/src/data/windowing.py            Sliding-window sequence generation
+ml/src/evaluation/metrics.py        RMSE, MAE, R2, and NASA score
+ml/src/models/baseline_rf.py         Random Forest baseline training
+ml/src/models/baseline_xgb.py        XGBoost baseline training
+ml/src/models/registry.py            Lightweight model artifact registry
+ml/src/models/train_baselines.py     Combined baseline training script
 ml/tests/test_data_pipeline.py      Unit tests for the data pipeline
+ml/tests/test_metrics_and_registry.py Unit tests for metrics and registry behavior
+docs/RESULTS.md                     Running model leaderboard
 ```
 
 ## Milestone's Details and Findings
@@ -144,6 +151,41 @@ The same function returns:
 - sequence windows for LSTM, GRU, and transformer models later
 - labeled train/test data
 - fitted feature engineering metadata
+
+### Milestone 1.3: Classic ML Baselines
+
+This milestone establishes the first real model leaderboard. The goal is not to claim the final best model yet; it is to create a baseline that every later LSTM, GRU, or transformer model must beat.
+
+Implemented components:
+
+- `baseline_rf.py` trains a Random Forest regressor.
+- `baseline_xgb.py` trains an XGBoost regressor.
+- `metrics.py` evaluates RMSE, MAE, R2, and NASA score.
+- `search.py` performs a small holdout grid search before final training.
+- `registry.py` saves each trained model as `model.joblib` with a matching `metadata.json`.
+- `docs/RESULTS.md` stores the running leaderboard.
+
+Current FD001 results:
+
+| Model | RMSE | MAE | R2 | NASA Score |
+| --- | ---: | ---: | ---: | ---: |
+| Random Forest | 18.1382 | 12.6108 | 0.7951 | 1084.3293 |
+| XGBoost | 18.9330 | 13.2661 | 0.7768 | 1208.9589 |
+
+Findings:
+
+- Random Forest is the current FD001 leader, with lower RMSE, lower MAE, higher R2, and lower NASA score than XGBoost.
+- Both models use the same engineered cycle-level features from Milestone 1.2: operating settings, selected sensors, rolling means, and rolling standard deviations.
+- The Random Forest grid search selected `n_estimators=400`, `max_depth=None`, and `min_samples_leaf=1`.
+- The XGBoost grid search selected `n_estimators=600`, `max_depth=4`, and `learning_rate=0.05`.
+- NASA score is especially important because over-estimating RUL is riskier than under-estimating it. On this run, Random Forest is not only more accurate by RMSE/MAE, but also safer by the asymmetric NASA metric.
+
+Saved artifact versions:
+
+- Random Forest: `ml/models/registry/random_forest/FD001/20260702T071720Z/`
+- XGBoost: `ml/models/registry/xgboost/FD001/20260702T071739Z/`
+
+The main lesson from this milestone is that the project now has a measurable baseline. Future sequence models should be compared against these exact numbers, not only against intuition.
 
 ## The Data Pipeline Explained Simply
 
@@ -219,15 +261,24 @@ docker-compose up -d
 
 MongoDB is included now because the final platform will persist machines, sensor readings, predictions, and maintenance logs. It is not required for the Milestone 1.2 ML pipeline.
 
+Train the Milestone 1.3 Random Forest and XGBoost baselines:
+
+```bash
+make train-baselines
+```
+
+This writes model artifacts to `ml/models/registry/` and appends metrics to `docs/RESULTS.md`.
+
 ## How To Explain This Project
 
 A concise explanation:
 
-> This is an industrial predictive maintenance platform. I started with NASA C-MAPSS turbofan data and built the foundation that production RUL modeling needs: dataset documentation, EDA, RUL target generation, feature engineering, normalization, and sequence windowing. The pipeline now produces both tabular training data for Random Forest/XGBoost and sequence windows for future LSTM or transformer models. Later milestones add model training, a standalone serving API, a FastAPI backend, MongoDB persistence, and a dashboard.
+> This is an industrial predictive maintenance platform. I started with NASA C-MAPSS turbofan data and built the foundation that production RUL modeling needs: dataset documentation, EDA, RUL target generation, feature engineering, normalization, and sequence windowing. The pipeline now produces tabular training data for Random Forest/XGBoost, saves trained baseline artifacts with metadata, and also prepares sequence windows for future LSTM or transformer models. Later milestones add a standalone serving API, a FastAPI backend, MongoDB persistence, and a dashboard.
 
 An interviewer-friendly explanation:
 
 > The important design choice is that I did not jump straight to a model. I first built a reusable pipeline. It parses the raw sensor logs, computes capped Remaining Useful Life labels, removes sensors shown by EDA to be uninformative, adds rolling statistics, handles operating-regime normalization for harder C-MAPSS subsets, and generates sliding windows without leaking across engines. That makes the next modeling milestones much cleaner because every model family can consume the same trusted data layer.
 
+Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry.
 
 See `ROADMAP.md` for the full technical plan.

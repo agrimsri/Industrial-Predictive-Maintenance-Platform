@@ -119,6 +119,9 @@ def test_get_training_data_returns_tabular_and_sequence_splits():
 
     assert len(data.X_train) == len(data.y_train)
     assert len(data.X_test) == len(data.y_test)
+    assert data.y_train.nunique() > 1
     assert data.train_windows.ndim == 3
     assert data.train_windows.shape[1] == 20
+    assert len(data.train_window_metadata) == len(data.y_train_windows)
+    assert len(data.test_window_metadata) == len(data.y_test_windows)
     assert np.isfinite(data.X_train.to_numpy()).all()

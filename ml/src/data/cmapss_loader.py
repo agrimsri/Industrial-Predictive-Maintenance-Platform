@@ -49,8 +49,10 @@ class TrainingData:
     test_features: pd.DataFrame
     train_windows: object
     y_train_windows: object
+    train_window_metadata: object
     test_windows: object
     y_test_windows: object
+    test_window_metadata: object
     feature_result: FeatureEngineeringResult
 
 
@@ -105,8 +107,10 @@ def get_training_data(
 ) -> TrainingData:
     """Return train/test splits ready for tabular and sequence RUL models.
 
-    Tabular outputs are last-cycle snapshots per engine. Sequence outputs are
-    sliding windows over all available cycles.
+    Tabular training outputs use every labeled train cycle. Tabular test outputs
+    use the final observed cycle for each held-out engine, matching the official
+    C-MAPSS RUL targets. Sequence outputs are sliding windows over all available
+    cycles.
     """
 
     raw = load_cmapss(dataset=dataset, data_root=data_root)
@@ -122,19 +126,18 @@ def get_training_data(
     )
     feature_result = build_features(train_labeled, test_labeled, config=config)
 
-    train_snapshot = _last_cycle_snapshot(feature_result.train)
     test_snapshot = _last_cycle_snapshot(feature_result.test)
     exclude = {"engine_id", "cycle", "rul", "operating_regime"}
-    feature_columns = [column for column in train_snapshot.columns if column not in exclude]
+    feature_columns = [column for column in feature_result.train.columns if column not in exclude]
 
-    train_windows, y_train_windows, _ = make_engine_windows(
+    train_windows, y_train_windows, train_window_metadata = make_engine_windows(
         feature_result.train,
         feature_columns=feature_columns,
         target_column="rul",
         window_size=window_size,
         stride=window_stride,
     )
-    test_windows, y_test_windows, _ = make_engine_windows(
+    test_windows, y_test_windows, test_window_metadata = make_engine_windows(
         feature_result.test,
         feature_columns=feature_columns,
         target_column="rul",
@@ -143,15 +146,17 @@ def get_training_data(
     )
 
     return TrainingData(
-        X_train=train_snapshot[feature_columns].reset_index(drop=True),
-        y_train=train_snapshot["rul"].reset_index(drop=True),
+        X_train=feature_result.train[feature_columns].reset_index(drop=True),
+        y_train=feature_result.train["rul"].reset_index(drop=True),
         X_test=test_snapshot[feature_columns].reset_index(drop=True),
         y_test=test_snapshot["rul"].reset_index(drop=True),
         train_features=feature_result.train,
         test_features=feature_result.test,
         train_windows=train_windows,
         y_train_windows=y_train_windows,
+        train_window_metadata=train_window_metadata,
         test_windows=test_windows,
         y_test_windows=y_test_windows,
+        test_window_metadata=test_window_metadata,
         feature_result=feature_result,
     )
