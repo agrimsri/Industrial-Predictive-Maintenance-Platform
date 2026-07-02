@@ -2,7 +2,7 @@
 
 This repository is a portfolio-grade predictive maintenance platform. The goal is not only to train a model on a notebook dataset, but to build the project the way an industrial machine learning system would grow in practice: data pipelines first, then model training, then model serving, backend persistence, and finally a dashboard.
 
-Current progress: milestones 0.1 through 1.3 are implemented. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, and saved model artifacts with metadata.
+Current progress: milestones 0.1 through 1.4 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, and a PyTorch LSTM/GRU sequence-model trainer ready to run locally or on Colab/Kaggle.
 
 ## What Problem This Project Solves
 
@@ -69,7 +69,7 @@ ml/         Data acquisition, EDA, feature engineering, and future model trainin
 serving/    Standalone model-serving API, planned for Phase 2
 ```
 
-Important files through Milestone 1.3:
+Important files through Milestone 1.4:
 
 ```text
 ROADMAP.md                         Technical milestone plan
@@ -86,10 +86,13 @@ ml/src/data/windowing.py            Sliding-window sequence generation
 ml/src/evaluation/metrics.py        RMSE, MAE, R2, and NASA score
 ml/src/models/baseline_rf.py         Random Forest baseline training
 ml/src/models/baseline_xgb.py        XGBoost baseline training
+ml/src/models/lstm_rul.py            LSTM/GRU sequence-model training
 ml/src/models/registry.py            Lightweight model artifact registry
 ml/src/models/train_baselines.py     Combined baseline training script
+ml/notebooks/02_train_lstm_colab.ipynb Colab-oriented LSTM training notebook
 ml/tests/test_data_pipeline.py      Unit tests for the data pipeline
 ml/tests/test_metrics_and_registry.py Unit tests for metrics and registry behavior
+ml/tests/test_lstm_rul.py           Unit tests for sequence model behavior
 docs/RESULTS.md                     Running model leaderboard
 ```
 
@@ -187,6 +190,27 @@ Saved artifact versions:
 
 The main lesson from this milestone is that the project now has a measurable baseline. Future sequence models should be compared against these exact numbers, not only against intuition.
 
+### Milestone 1.4: LSTM/GRU Sequence Model
+
+This milestone moves from tabular snapshots to sequence learning. Instead of asking a model to predict RUL from engineered features at one cycle, the PyTorch model consumes a sliding window of recent sensor history.
+
+Implemented components:
+
+- `lstm_rul.py` defines an LSTM/GRU regressor over C-MAPSS windows.
+- The trainer reuses the Milestone 1.2 `get_training_data()` window outputs.
+- Evaluation uses the final available test window per engine, so the score lines up with the official C-MAPSS test RUL target.
+- Training includes early stopping, gradient clipping, AdamW, and `ReduceLROnPlateau` scheduling.
+- Checkpoints are saved as `model.pt` with JSON metadata under `ml/models/registry/lstm_rul/` or `ml/models/registry/gru_rul/`.
+- `02_train_lstm_colab.ipynb` provides a GPU-friendly notebook workflow.
+
+Run locally:
+
+```bash
+make train-lstm
+```
+
+The LSTM/GRU row should be added to `docs/RESULTS.md` after training. The key comparison will be whether sequence learning beats the current Random Forest baseline: RMSE `18.1382`, MAE `12.6108`, and NASA score `1084.3293` on FD001.
+
 ## The Data Pipeline Explained Simply
 
 The pipeline turns raw C-MAPSS text files into clean model inputs.
@@ -269,6 +293,14 @@ make train-baselines
 
 This writes model artifacts to `ml/models/registry/` and appends metrics to `docs/RESULTS.md`.
 
+Train the Milestone 1.4 LSTM sequence model:
+
+```bash
+make train-lstm
+```
+
+For GPU training, open `ml/notebooks/02_train_lstm_colab.ipynb` in Colab or Kaggle.
+
 ## How To Explain This Project
 
 A concise explanation:
@@ -279,6 +311,6 @@ An interviewer-friendly explanation:
 
 > The important design choice is that I did not jump straight to a model. I first built a reusable pipeline. It parses the raw sensor logs, computes capped Remaining Useful Life labels, removes sensors shown by EDA to be uninformative, adds rolling statistics, handles operating-regime normalization for harder C-MAPSS subsets, and generates sliding windows without leaking across engines. That makes the next modeling milestones much cleaner because every model family can consume the same trusted data layer.
 
-Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry.
+Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook.
 
 See `ROADMAP.md` for the full technical plan.
