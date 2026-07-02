@@ -210,7 +210,27 @@ Run locally:
 make train-lstm
 ```
 
-The LSTM/GRU row should be added to `docs/RESULTS.md` after training. The key comparison will be whether sequence learning beats the current Random Forest baseline: RMSE `18.1382`, MAE `12.6108`, and NASA score `1084.3293` on FD001.
+Colab FD001 results:
+
+| Model | Run | Max Epochs | RMSE | MAE | R2 | NASA Score |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| LSTM | `20260702T102020Z` | 30 | 16.3312 | 11.9987 | 0.8339 | 835.6180 |
+| LSTM | `20260702T103659Z` | 100 | 16.5961 | 12.6642 | 0.8285 | 815.3898 |
+
+Findings:
+
+- The LSTM beats the current Random Forest baseline on FD001 across the main metrics. Random Forest had RMSE `18.1382`, MAE `12.6108`, R2 `0.7951`, and NASA score `1084.3293`.
+- The `20260702T102020Z` LSTM run is best by RMSE, MAE, and R2: RMSE improved from `18.1382` to `16.3312`.
+- The `20260702T103659Z` LSTM run is best by NASA score: NASA score improved from `1084.3293` to `815.3898`.
+- This is a useful industrial trade-off: the 30-epoch run is more accurate on average, while the 100-epoch run is better under the asymmetric NASA penalty that punishes risky late predictions more.
+- Both runs used `window_size=30`, `hidden_size=64`, `num_layers=2`, `dropout=0.2`, `batch_size=128`, and the same 73 engineered sequence features from Milestone 1.2.
+
+Saved LSTM metadata versions:
+
+- Best RMSE/MAE/R2 run: `ml/models/registry/lstm_rul/FD001/20260702T102020Z/`
+- Best NASA score run: `ml/models/registry/lstm_rul/FD001/20260702T103659Z/`
+
+The main lesson from this milestone is that sequence learning is already adding value over the classic tabular baseline. The next milestone should test whether a transformer-style time-series model can keep or improve this accuracy while changing the training/inference cost profile.
 
 ## The Data Pipeline Explained Simply
 
