@@ -1,0 +1,210 @@
+{
+  "artifact_path": "/home/silvanus/CODES/ipmp-platform/ml/models/registry/xgboost/FD001/20260702T071739Z/model.joblib",
+  "created_at": "2026-07-02T07:17:39.420756+00:00",
+  "dataset": "FD001",
+  "description": "XGBoost baseline trained on engineered C-MAPSS cycle-level features.",
+  "feature_columns": [
+    "setting_1",
+    "setting_2",
+    "setting_3",
+    "s_2",
+    "s_3",
+    "s_4",
+    "s_7",
+    "s_8",
+    "s_9",
+    "s_11",
+    "s_12",
+    "s_13",
+    "s_14",
+    "s_15",
+    "s_17",
+    "s_20",
+    "s_21",
+    "s_2_roll5_mean",
+    "s_3_roll5_mean",
+    "s_4_roll5_mean",
+    "s_7_roll5_mean",
+    "s_8_roll5_mean",
+    "s_9_roll5_mean",
+    "s_11_roll5_mean",
+    "s_12_roll5_mean",
+    "s_13_roll5_mean",
+    "s_14_roll5_mean",
+    "s_15_roll5_mean",
+    "s_17_roll5_mean",
+    "s_20_roll5_mean",
+    "s_21_roll5_mean",
+    "s_2_roll5_std",
+    "s_3_roll5_std",
+    "s_4_roll5_std",
+    "s_7_roll5_std",
+    "s_8_roll5_std",
+    "s_9_roll5_std",
+    "s_11_roll5_std",
+    "s_12_roll5_std",
+    "s_13_roll5_std",
+    "s_14_roll5_std",
+    "s_15_roll5_std",
+    "s_17_roll5_std",
+    "s_20_roll5_std",
+    "s_21_roll5_std",
+    "s_2_roll10_mean",
+    "s_3_roll10_mean",
+    "s_4_roll10_mean",
+    "s_7_roll10_mean",
+    "s_8_roll10_mean",
+    "s_9_roll10_mean",
+    "s_11_roll10_mean",
+    "s_12_roll10_mean",
+    "s_13_roll10_mean",
+    "s_14_roll10_mean",
+    "s_15_roll10_mean",
+    "s_17_roll10_mean",
+    "s_20_roll10_mean",
+    "s_21_roll10_mean",
+    "s_2_roll10_std",
+    "s_3_roll10_std",
+    "s_4_roll10_std",
+    "s_7_roll10_std",
+    "s_8_roll10_std",
+    "s_9_roll10_std",
+    "s_11_roll10_std",
+    "s_12_roll10_std",
+    "s_13_roll10_std",
+    "s_14_roll10_std",
+    "s_15_roll10_std",
+    "s_17_roll10_std",
+    "s_20_roll10_std",
+    "s_21_roll10_std"
+  ],
+  "metadata_path": "/home/silvanus/CODES/ipmp-platform/ml/models/registry/xgboost/FD001/20260702T071739Z/metadata.json",
+  "metrics": {
+    "mae": 13.26606068134308,
+    "nasa_score": 1208.9588615623509,
+    "r2": 0.7767831300310444,
+    "rmse": 18.93295320162367
+  },
+  "model_name": "xgboost",
+  "params": {
+    "final": {
+      "colsample_bytree": 0.9,
+      "eval_metric": "rmse",
+      "learning_rate": 0.05,
+      "max_depth": 4,
+      "n_estimators": 600,
+      "n_jobs": -1,
+      "objective": "reg:squarederror",
+      "random_state": 42,
+      "subsample": 0.9,
+      "tree_method": "hist"
+    },
+    "search": [
+      {
+        "metrics": {
+          "mae": 12.136970379334082,
+          "nasa_score": 43368.81795996476,
+          "r2": 0.8325965668347322,
+          "rmse": 16.852478725046183
+        },
+        "params": {
+          "learning_rate": 0.03,
+          "max_depth": 3,
+          "n_estimators": 300
+        }
+      },
+      {
+        "metrics": {
+          "mae": 11.782264132764862,
+          "nasa_score": 38901.32224766473,
+          "r2": 0.8413721062617023,
+          "rmse": 16.40481685336911
+        },
+        "params": {
+          "learning_rate": 0.05,
+          "max_depth": 3,
+          "n_estimators": 300
+        }
+      },
+      {
+        "metrics": {
+          "mae": 11.473883461780343,
+          "nasa_score": 37122.112369733775,
+          "r2": 0.8470905722812598,
+          "rmse": 16.106409578477468
+        },
+        "params": {
+          "learning_rate": 0.03,
+          "max_depth": 4,
+          "n_estimators": 300
+        }
+      },
+      {
+        "metrics": {
+          "mae": 11.03642277145417,
+          "nasa_score": 30880.256714965624,
+          "r2": 0.8582773422205856,
+          "rmse": 15.50605255001773
+        },
+        "params": {
+          "learning_rate": 0.05,
+          "max_depth": 4,
+          "n_estimators": 300
+        }
+      },
+      {
+        "metrics": {
+          "mae": 11.697798532848356,
+          "nasa_score": 37267.67132138221,
+          "r2": 0.8436466202658853,
+          "rmse": 16.286780526009093
+        },
+        "params": {
+          "learning_rate": 0.03,
+          "max_depth": 3,
+          "n_estimators": 600
+        }
+      },
+      {
+        "metrics": {
+          "mae": 11.332301319201518,
+          "nasa_score": 31537.57536195118,
+          "r2": 0.8541393724784715,
+          "rmse": 15.730794083602737
+        },
+        "params": {
+          "learning_rate": 0.05,
+          "max_depth": 3,
+          "n_estimators": 600
+        }
+      },
+      {
+        "metrics": {
+          "mae": 10.901411207539494,
+          "nasa_score": 29690.930821215505,
+          "r2": 0.861516118015958,
+          "rmse": 15.32784930259239
+        },
+        "params": {
+          "learning_rate": 0.03,
+          "max_depth": 4,
+          "n_estimators": 600
+        }
+      },
+      {
+        "metrics": {
+          "mae": 10.380142580604067,
+          "nasa_score": 24494.088946847485,
+          "r2": 0.874938341465578,
+          "rmse": 14.566113822213836
+        },
+        "params": {
+          "learning_rate": 0.05,
+          "max_depth": 4,
+          "n_estimators": 600
+        }
+      }
+    ]
+  },
+  "version": "20260702T071739Z"
+}

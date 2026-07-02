@@ -1,0 +1,6 @@
+{
+  "dataset": "FD001",
+  "metadata_path": "/home/silvanus/CODES/ipmp-platform/ml/models/registry/random_forest/FD001/20260702T071720Z/metadata.json",
+  "model_name": "random_forest",
+  "version": "20260702T071720Z"
+}

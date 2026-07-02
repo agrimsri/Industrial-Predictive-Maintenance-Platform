@@ -1,0 +1,6 @@
+{
+  "dataset": "FD001",
+  "metadata_path": "/home/silvanus/CODES/ipmp-platform/ml/models/registry/xgboost/FD001/20260702T071739Z/metadata.json",
+  "model_name": "xgboost",
+  "version": "20260702T071739Z"
+}
