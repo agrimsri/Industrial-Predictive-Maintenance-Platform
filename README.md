@@ -2,7 +2,7 @@
 
 This repository is a portfolio-grade predictive maintenance platform. The goal is not only to train a model on a notebook dataset, but to build the project the way an industrial machine learning system would grow in practice: data pipelines first, then model training, then model serving, backend persistence, and finally a dashboard.
 
-Current progress: milestones 0.1 through 1.4 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, and a PyTorch LSTM/GRU sequence-model trainer ready to run locally or on Colab/Kaggle.
+Current progress: milestones 0.1 through 1.5 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, a PyTorch LSTM/GRU sequence-model trainer, and a PatchTST-style transformer trainer ready to run on Colab/Kaggle. PatchTST training metrics are intentionally pending until the GPU run.
 
 ## What Problem This Project Solves
 
@@ -87,13 +87,16 @@ ml/src/evaluation/metrics.py        RMSE, MAE, R2, and NASA score
 ml/src/models/baseline_rf.py         Random Forest baseline training
 ml/src/models/baseline_xgb.py        XGBoost baseline training
 ml/src/models/lstm_rul.py            LSTM/GRU sequence-model training
+ml/src/models/patchtst_rul.py        PatchTST-style transformer training
 ml/src/models/registry.py            Lightweight model artifact registry
 ml/src/models/train_baselines.py     Combined baseline training script
 ml/notebooks/02_train_lstm_colab.ipynb Colab-oriented LSTM training notebook
+ml/notebooks/03_train_patchtst_colab.ipynb Colab-oriented PatchTST training notebook
 ml/tests/test_data_pipeline.py      Unit tests for the data pipeline
 ml/tests/test_metrics_and_registry.py Unit tests for metrics and registry behavior
 ml/tests/test_lstm_rul.py           Unit tests for sequence model behavior
 docs/RESULTS.md                     Running model leaderboard
+docs/MODEL_COMPARISON.md            Cross-family model comparison notes
 ```
 
 ## Milestone's Details and Findings
@@ -236,6 +239,28 @@ Saved sequence metadata versions:
 
 The main lesson from this milestone is that sequence learning is clearly adding value over the classic tabular baseline, and GRU is currently the strongest Phase 1 model. The next milestone should test whether a transformer-style time-series model can beat the GRU result or offer a better accuracy/cost trade-off.
 
+### Milestone 1.5: PatchTST Transformer Model
+
+This milestone adds a transformer-style time-series model for RUL prediction. The implementation uses the central PatchTST idea: split each sensor channel into temporal patches, encode those patch tokens with a shared Transformer encoder, then predict one RUL value for the full window.
+
+Implemented components:
+
+- `patchtst_rul.py` defines a PatchTST-style PyTorch regressor over C-MAPSS windows.
+- The trainer reuses the same Milestone 1.2 `get_training_data()` sequence outputs as the LSTM/GRU trainer.
+- Evaluation again keeps only the final available test window per engine, matching the official C-MAPSS test target.
+- Training includes RevIN-style input normalization, early stopping, gradient clipping, AdamW, and `ReduceLROnPlateau` scheduling.
+- Checkpoints are saved as `model.pt` with JSON metadata under `ml/models/registry/patchtst_rul/`.
+- `03_train_patchtst_colab.ipynb` provides a GPU-friendly notebook workflow.
+- `docs/MODEL_COMPARISON.md` is the comparison write-up scaffold for RF/XGBoost, LSTM/GRU, and PatchTST across FD001-FD004.
+
+Run on Colab:
+
+```bash
+PYTHONPATH=ml python -m src.models.patchtst_rul --dataset FD001 --max-epochs 100 --patience 12
+```
+
+No PatchTST metrics are committed yet because this milestone's training is intended to run on Colab/Kaggle GPU.
+
 ## The Data Pipeline Explained Simply
 
 The pipeline turns raw C-MAPSS text files into clean model inputs.
@@ -326,6 +351,14 @@ make train-lstm
 
 For GPU training, open `ml/notebooks/02_train_lstm_colab.ipynb` in Colab or Kaggle.
 
+Train the Milestone 1.5 PatchTST transformer model:
+
+```bash
+make train-patchtst
+```
+
+For GPU training, open `ml/notebooks/03_train_patchtst_colab.ipynb` in Colab or Kaggle.
+
 ## How To Explain This Project
 
 A concise explanation:
@@ -336,6 +369,6 @@ An interviewer-friendly explanation:
 
 > The important design choice is that I did not jump straight to a model. I first built a reusable pipeline. It parses the raw sensor logs, computes capped Remaining Useful Life labels, removes sensors shown by EDA to be uninformative, adds rolling statistics, handles operating-regime normalization for harder C-MAPSS subsets, and generates sliding windows without leaking across engines. That makes the next modeling milestones much cleaner because every model family can consume the same trusted data layer.
 
-Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook.
+Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook. Milestone 1.5 adds a PatchTST-style transformer so the project can compare classic ML, recurrent sequence models, and transformer sequence models on the same benchmark.
 
 See `ROADMAP.md` for the full technical plan.

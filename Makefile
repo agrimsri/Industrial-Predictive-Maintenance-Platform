@@ -1,4 +1,4 @@
-.PHONY: download-data train-baselines train-lstm
+.PHONY: download-data train-baselines train-lstm train-patchtst
 
 download-data:
 	@echo "Fetching datasets..."
@@ -12,3 +12,6 @@ train-baselines:
 
 train-lstm:
 	PYTHONPATH=ml ml/.venv/bin/python -m src.models.lstm_rul --dataset FD001 --model-type lstm
+
+train-patchtst:
+	PYTHONPATH=ml ml/.venv/bin/python -m src.models.patchtst_rul --dataset FD001
