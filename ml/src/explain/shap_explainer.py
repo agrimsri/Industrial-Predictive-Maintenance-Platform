@@ -203,6 +203,7 @@ class SHAPExplainer:
         )
         instance._dataset = dataset
         instance._device = device
+        instance._model = model
         return instance
 
     @classmethod
@@ -252,6 +253,7 @@ class SHAPExplainer:
         )
         instance._dataset = dataset
         instance._device = device
+        instance._model = model
         return instance
 
     # ------------------------------------------------------------------
@@ -354,9 +356,8 @@ class SHAPExplainer:
         sv_2d = sv[0]  # (T, F)
 
         if prediction is None:
-            model = self._explainer.model
             with torch.no_grad():
-                prediction = float(model(window_tensor).cpu().numpy().reshape(-1)[0])
+                prediction = float(self._model(window_tensor).cpu().numpy().reshape(-1)[0])
 
         # Per-feature importance: mean absolute SHAP over all timesteps
         abs_mean_per_feature = np.abs(sv_2d).mean(axis=0)  # (F,)
@@ -454,6 +455,53 @@ def explain_sequence_prediction(
 # ---------------------------------------------------------------------------
 
 
+def _registry_metadata_path(
+    registry_root: Path,
+    model_name: str,
+    dataset: str,
+    version: str,
+) -> Path:
+    """Resolve metadata locally, even when a pointer was written on Colab."""
+    model_root = registry_root / model_name / dataset
+    if version != "latest":
+        return model_root / version / "metadata.json"
+
+    pointer = model_root / "latest.json"
+    if not pointer.exists():
+        raise FileNotFoundError(
+            f"No registry entry for {model_name}/{dataset}. Train the model first."
+        )
+
+    latest = json.loads(pointer.read_text(encoding="utf-8"))
+    local_path = model_root / latest["version"] / "metadata.json"
+    stored_path = Path(latest.get("metadata_path", ""))
+    if stored_path.is_file():
+        return stored_path
+    if local_path.is_file():
+        return local_path
+
+    raise FileNotFoundError(
+        f"Metadata for {model_name}/{dataset}/{latest['version']} is missing. "
+        f"Expected {local_path}. Train or download the model artifact first."
+    )
+
+
+def _registry_artifact_path(metadata_path: Path, metadata: dict[str, Any], filename: str) -> Path:
+    """Prefer a usable stored path, otherwise resolve beside metadata.json."""
+    stored_path = Path(metadata.get("artifact_path", ""))
+    if stored_path.is_file():
+        return stored_path
+
+    local_path = metadata_path.parent / filename
+    if local_path.is_file():
+        return local_path
+
+    raise FileNotFoundError(
+        f"Model artifact is missing. Expected {local_path}. "
+        "Train or download the model checkpoint first."
+    )
+
+
 def load_xgboost_from_registry(
     dataset: str = "FD001",
     version: str = "latest",
@@ -469,20 +517,11 @@ def load_xgboost_from_registry(
     import joblib
 
     registry_root = Path(registry_root)
-    if version == "latest":
-        pointer = registry_root / "xgboost" / dataset / "latest.json"
-        if not pointer.exists():
-            raise FileNotFoundError(
-                f"No XGBoost registry entry for dataset={dataset}. "
-                "Run `make train-baselines` first."
-            )
-        meta = json.loads(pointer.read_text(encoding="utf-8"))
-        meta = json.loads(Path(meta["metadata_path"]).read_text(encoding="utf-8"))
-    else:
-        meta_path = registry_root / "xgboost" / dataset / version / "metadata.json"
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta_path = _registry_metadata_path(registry_root, "xgboost", dataset, version)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    artifact_path = _registry_artifact_path(meta_path, meta, "model.joblib")
 
-    model = joblib.load(meta["artifact_path"])
+    model = joblib.load(artifact_path)
     feature_columns: list[str] = meta["feature_columns"]
     return model, feature_columns
 
@@ -522,19 +561,9 @@ def load_sequence_model_from_registry(
     import torch
 
     registry_root = Path(registry_root)
-    if version == "latest":
-        pointer = registry_root / model_name / dataset / "latest.json"
-        if not pointer.exists():
-            raise FileNotFoundError(
-                f"No registry entry for {model_name}/{dataset}. "
-                "Train the model first."
-            )
-        ptr = json.loads(pointer.read_text(encoding="utf-8"))
-        artifact_path = Path(
-            json.loads(Path(ptr["metadata_path"]).read_text(encoding="utf-8"))["artifact_path"]
-        )
-    else:
-        artifact_path = registry_root / model_name / dataset / version / "model.pt"
+    meta_path = _registry_metadata_path(registry_root, model_name, dataset, version)
+    metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+    artifact_path = _registry_artifact_path(meta_path, metadata, "model.pt")
 
     checkpoint = torch.load(artifact_path, map_location=device_name, weights_only=False)
     config = checkpoint["config"]

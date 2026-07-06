@@ -1,6 +1,6 @@
 {
   "dataset": "FD001",
-  "metadata_path": "/content/Industrial-Predictive-Maintenance-Platform/Industrial-Predictive-Maintenance-Platform/ml/models/registry/gru_rul/FD001/20260702T161238Z/metadata.json",
+  "metadata_path": "/content/Industrial-Predictive-Maintenance-Platform/Industrial-Predictive-Maintenance-Platform/ml/models/registry/gru_rul/FD001/20260704T073422Z/metadata.json",
   "model_name": "gru_rul",
-  "version": "20260702T161238Z"
+  "version": "20260704T073422Z"
 }
