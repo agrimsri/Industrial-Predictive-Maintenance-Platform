@@ -21,3 +21,4 @@ ml/models/registry/**/model.joblib
 ml/models/registry/**/model.pt
 ml/models/registry/**/model.pth
 ml/models/registry/**/model.ckpt
+scripts/

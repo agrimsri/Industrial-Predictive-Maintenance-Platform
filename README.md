@@ -2,7 +2,7 @@
 
 This repository is a portfolio-grade predictive maintenance platform. The goal is not only to train a model on a notebook dataset, but to build the project the way an industrial machine learning system would grow in practice: data pipelines first, then model training, then model serving, backend persistence, and finally a dashboard.
 
-Current progress: milestones 0.1 through 1.5 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, a PyTorch LSTM/GRU sequence-model trainer, and a PatchTST-style transformer trainer ready to run on Colab/Kaggle. PatchTST training metrics are intentionally pending until the GPU run.
+Current progress: milestones 0.1 through 1.6 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, a PyTorch LSTM/GRU sequence-model trainer, a PatchTST-style transformer trainer ready to run on Colab/Kaggle, and a SHAP-based explainability module with demo notebooks and serving schemas. PatchTST training metrics are intentionally pending until the GPU run.
 
 ## What Problem This Project Solves
 
@@ -69,12 +69,13 @@ ml/         Data acquisition, EDA, feature engineering, and future model trainin
 serving/    Standalone model-serving API, planned for Phase 2
 ```
 
-Important files through Milestone 1.4:
+Important files through Milestone 1.6:
 
 ```text
 ROADMAP.md                         Technical milestone plan
 docs/DATASETS.md                   Dataset sources, licenses, and citations
 docs/EDA_FINDINGS.md               C-MAPSS exploratory analysis summary
+docs/SCHEMAS.md                    API data contract schemas for prediction & explanations
 ml/data/download_cmapss.py          NASA C-MAPSS download script
 ml/data/download_mimii.py           MIMII download script
 ml/data/download_cwru.py            CWRU download script
@@ -90,8 +91,10 @@ ml/src/models/lstm_rul.py            LSTM/GRU sequence-model training
 ml/src/models/patchtst_rul.py        PatchTST-style transformer training
 ml/src/models/registry.py            Lightweight model artifact registry
 ml/src/models/train_baselines.py     Combined baseline training script
+ml/src/explain/shap_explainer.py     SHAP interpretability and explanation generator
 ml/notebooks/02_train_lstm_colab.ipynb Colab-oriented LSTM training notebook
 ml/notebooks/03_train_patchtst_colab.ipynb Colab-oriented PatchTST training notebook
+ml/notebooks/04_shap_explainability.ipynb Colab-oriented SHAP explainability notebook
 ml/tests/test_data_pipeline.py      Unit tests for the data pipeline
 ml/tests/test_metrics_and_registry.py Unit tests for metrics and registry behavior
 ml/tests/test_lstm_rul.py           Unit tests for sequence model behavior
@@ -261,6 +264,16 @@ PYTHONPATH=ml python -m src.models.patchtst_rul --dataset FD001 --max-epochs 100
 
 No PatchTST metrics are committed yet because this milestone's training is intended to run on Colab/Kaggle GPU.
 
+### Milestone 1.6: Explainability (SHAP)
+
+This milestone adds SHAP-based feature attribution to provide interpretability for predictions. This helps explain which sensors and timesteps contributed most to each Remaining Useful Life (RUL) estimate.
+
+Implemented components:
+
+- `shap_explainer.py` implements the core explainability module. It uses `shap.TreeExplainer` for XGBoost models, and `shap.GradientExplainer` for PyTorch sequence models (LSTM, GRU, and PatchTST).
+- `docs/SCHEMAS.md` defines the API data contract schemas that the serving API will use for `/predict/rul` and `/predict/rul/explain` response models.
+- `04_shap_explainability.ipynb` demonstrates computing global feature importances, per-engine waterfall/beeswarm plots, and attribution heatmaps over sliding window sequences.
+
 ## The Data Pipeline Explained Simply
 
 The pipeline turns raw C-MAPSS text files into clean model inputs.
@@ -369,6 +382,6 @@ An interviewer-friendly explanation:
 
 > The important design choice is that I did not jump straight to a model. I first built a reusable pipeline. It parses the raw sensor logs, computes capped Remaining Useful Life labels, removes sensors shown by EDA to be uninformative, adds rolling statistics, handles operating-regime normalization for harder C-MAPSS subsets, and generates sliding windows without leaking across engines. That makes the next modeling milestones much cleaner because every model family can consume the same trusted data layer.
 
-Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook. Milestone 1.5 adds a PatchTST-style transformer so the project can compare classic ML, recurrent sequence models, and transformer sequence models on the same benchmark.
+Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook. Milestone 1.5 adds a PatchTST-style transformer so the project can compare classic ML, recurrent sequence models, and transformer sequence models on the same benchmark. Milestone 1.6 incorporates model interpretability using SHAP explainers (TreeExplainer and GradientExplainer), allowing operators to inspect feature attributions and understand individual RUL predictions.
 
 See `ROADMAP.md` for the full technical plan.

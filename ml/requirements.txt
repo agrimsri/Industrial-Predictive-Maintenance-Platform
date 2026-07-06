@@ -9,3 +9,5 @@ matplotlib
 seaborn
 jupyter
 pytest
+huggingface_hub
+shap
