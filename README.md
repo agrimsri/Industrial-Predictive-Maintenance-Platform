@@ -273,6 +273,15 @@ Implemented components:
 - `shap_explainer.py` implements the core explainability module. It uses `shap.TreeExplainer` for XGBoost models, and `shap.GradientExplainer` for PyTorch sequence models (LSTM, GRU, and PatchTST).
 - `docs/SCHEMAS.md` defines the API data contract schemas that the serving API will use for `/predict/rul` and `/predict/rul/explain` response models.
 - `04_shap_explainability.ipynb` demonstrates computing global feature importances, per-engine waterfall/beeswarm plots, and attribution heatmaps over sliding window sequences.
+- The generated explanations are saved under `ml/models/explanations/FD001/` as `xgboost_sample_44.json` and `gru_last_window.json`.
+
+Observations from the FD001 explanation run:
+
+- The XGBoost waterfall analysis selected test sample 44 because it had the largest absolute prediction error: the true RUL was `114` cycles, while the model predicted `54.70` cycles, an error of about `59.3` cycles.
+- XGBoost relied most strongly on rolling sensor summaries. Its top attributions were `s_15_roll10_mean` (`7.31` mean absolute SHAP), `s_4_roll10_mean` (`6.08`), `s_15_roll5_mean` (`5.67`), `s_4_roll5_mean` (`2.48`), and `s_7_roll10_mean` (`2.31`). This indicates that recent sensor trends were more influential than isolated readings for this difficult prediction.
+- The explained GRU window produced an RUL estimate of `19.20` cycles. Its strongest time-averaged attributions were `s_14_roll10_mean` (`0.398`), `s_14_roll5_mean` (`0.291`), `s_14_roll10_std` (`0.251`), `s_9_roll5_mean` (`0.226`), and raw `s_9` (`0.225`).
+- The GRU result shows that both longer-term level and variability matter: several rolling features derived from sensors 14 and 9 ranked above most raw sensor values. The operating settings had almost no influence on this FD001 window, which is consistent with FD001 having a single operating condition.
+- Together, the explanations show different model behavior: XGBoost concentrates large attribution on engineered snapshot features, while the GRU distributes attribution across features and timesteps in the 30-cycle input window. These values explain individual predictions and should not be interpreted as causal sensor effects.
 
 ## The Data Pipeline Explained Simply
 
