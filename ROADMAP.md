@@ -168,6 +168,8 @@ This phase is the spine of the project. Everything else (DL, transformers, audio
 ## Phase 2 — Model Serving API
 
 ### Milestone 2.1: Serving Service Skeleton
+**Status:** Implemented.
+
 **What we're doing:** Stand up the separate model-serving service (its own FastAPI app, separate from the business-logic backend) that loads artifacts from `ml/models/registry/` and exposes prediction endpoints.
 
 **Tasks:**

@@ -2,7 +2,7 @@
 
 This repository is a portfolio-grade predictive maintenance platform. The goal is not only to train a model on a notebook dataset, but to build the project the way an industrial machine learning system would grow in practice: data pipelines first, then model training, then model serving, backend persistence, and finally a dashboard.
 
-Current progress: milestones 0.1 through 1.6 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, a PyTorch LSTM/GRU sequence-model trainer, a PatchTST-style transformer trainer ready to run on Colab/Kaggle, and a SHAP-based explainability module with demo notebooks and serving schemas. PatchTST training metrics are intentionally pending until the GPU run.
+Current progress: milestones 0.1 through 2.1 are implemented through code. That means the repository has the project structure, dataset download scripts and documentation, C-MAPSS EDA notes, a reusable feature engineering pipeline, trained Random Forest and XGBoost baselines, a running results table, saved baseline artifacts with metadata, a PyTorch LSTM/GRU sequence-model trainer, a PatchTST-style transformer trainer ready to run on Colab/Kaggle, a SHAP-based explainability module with demo notebooks and serving schemas, and a standalone FastAPI model-serving API for registry-backed XGBoost RUL predictions. PatchTST training metrics are intentionally pending until the GPU run.
 
 ## What Problem This Project Solves
 
@@ -41,7 +41,7 @@ ML pipeline in /ml
 Model registry in /ml/models/registry
         |
         v
-Serving API in /serving                       (planned)
+Serving API in /serving
         |
         v
 FastAPI backend in /backend + MongoDB         (planned)
@@ -66,10 +66,10 @@ backend/    FastAPI business backend, planned for Phase 3
 docs/       Dataset notes, EDA findings, roadmap, and future design docs
 infra/      Docker Compose and local infrastructure
 ml/         Data acquisition, EDA, feature engineering, and future model training
-serving/    Standalone model-serving API, planned for Phase 2
+serving/    Standalone model-serving API for RUL predictions
 ```
 
-Important files through Milestone 1.6:
+Important files through Milestone 2.1:
 
 ```text
 ROADMAP.md                         Technical milestone plan
@@ -100,6 +100,12 @@ ml/tests/test_metrics_and_registry.py Unit tests for metrics and registry behavi
 ml/tests/test_lstm_rul.py           Unit tests for sequence model behavior
 docs/RESULTS.md                     Running model leaderboard
 docs/MODEL_COMPARISON.md            Cross-family model comparison notes
+serving/app/main.py                 FastAPI serving app with health, model listing, and RUL prediction
+serving/app/model_loader.py         Registry-aware model metadata and artifact loader
+serving/app/schemas.py              Pydantic request/response models matching docs/SCHEMAS.md
+serving/Dockerfile                  Container definition for the serving API
+serving/README.md                   Local run, Docker, and curl examples
+serving/tests/test_serving_api.py   Focused tests for serving behavior
 ```
 
 ## Milestone's Details and Findings
@@ -283,6 +289,32 @@ Observations from the FD001 explanation run:
 - The GRU result shows that both longer-term level and variability matter: several rolling features derived from sensors 14 and 9 ranked above most raw sensor values. The operating settings had almost no influence on this FD001 window, which is consistent with FD001 having a single operating condition.
 - Together, the explanations show different model behavior: XGBoost concentrates large attribution on engineered snapshot features, while the GRU distributes attribution across features and timesteps in the 30-cycle input window. These values explain individual predictions and should not be interpreted as causal sensor effects.
 
+### Milestone 2.1: Serving Service Skeleton
+
+This milestone starts Phase 2 by standing up a separate model-serving API. The service is intentionally independent from the future business backend, so model loading and prediction can evolve without coupling to MongoDB-backed application workflows.
+
+Implemented components:
+
+- `serving/app/main.py` defines the FastAPI app with `/health`, `/models`, and `POST /predict/rul`.
+- `serving/app/model_loader.py` reads metadata from `ml/models/registry/`, resolves latest model pointers, loads `model.joblib`, validates the registered feature contract, and runs tabular predictions.
+- `serving/app/schemas.py` mirrors the Milestone 1.6 serving contract in `docs/SCHEMAS.md`.
+- `serving/Dockerfile` packages the standalone service.
+- `serving/README.md` provides local Uvicorn, Docker, `/health`, `/models`, and `/predict/rul` curl examples.
+- `serving/tests/test_serving_api.py` covers health, registry listing, real XGBoost prediction, and feature validation.
+
+Smoke-tested endpoint result using the registered XGBoost FD001 artifact:
+
+```json
+{
+  "model_name": "xgboost",
+  "dataset": "FD001",
+  "model_version": "20260702T071739Z",
+  "rul_prediction": 86.36404418945312,
+  "explained": false,
+  "uncertainty": null
+}
+```
+
 ## The Data Pipeline Explained Simply
 
 The pipeline turns raw C-MAPSS text files into clean model inputs.
@@ -381,16 +413,27 @@ make train-patchtst
 
 For GPU training, open `ml/notebooks/03_train_patchtst_colab.ipynb` in Colab or Kaggle.
 
+Run the Milestone 2.1 serving API:
+
+```bash
+python3 -m venv serving/.venv
+source serving/.venv/bin/activate
+pip install -r serving/requirements.txt
+PYTHONPATH=serving uvicorn app.main:app --reload --port 8001
+```
+
+Then open `http://localhost:8001/health` or use the curl examples in `serving/README.md`.
+
 ## How To Explain This Project
 
 A concise explanation:
 
-> This is an industrial predictive maintenance platform. I started with NASA C-MAPSS turbofan data and built the foundation that production RUL modeling needs: dataset documentation, EDA, RUL target generation, feature engineering, normalization, and sequence windowing. The pipeline now produces tabular training data for Random Forest/XGBoost, saves trained baseline artifacts with metadata, and also prepares sequence windows for future LSTM or transformer models. Later milestones add a standalone serving API, a FastAPI backend, MongoDB persistence, and a dashboard.
+> This is an industrial predictive maintenance platform. I started with NASA C-MAPSS turbofan data and built the foundation that production RUL modeling needs: dataset documentation, EDA, RUL target generation, feature engineering, normalization, and sequence windowing. The pipeline now trains and registers classic, recurrent, and transformer-style models, produces SHAP explanations, and exposes a standalone FastAPI serving API for XGBoost RUL predictions. Later milestones add multi-model explanations, a FastAPI business backend, MongoDB persistence, and a dashboard.
 
 An interviewer-friendly explanation:
 
 > The important design choice is that I did not jump straight to a model. I first built a reusable pipeline. It parses the raw sensor logs, computes capped Remaining Useful Life labels, removes sensors shown by EDA to be uninformative, adds rolling statistics, handles operating-regime normalization for harder C-MAPSS subsets, and generates sliding windows without leaking across engines. That makes the next modeling milestones much cleaner because every model family can consume the same trusted data layer.
 
-Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook. Milestone 1.5 adds a PatchTST-style transformer so the project can compare classic ML, recurrent sequence models, and transformer sequence models on the same benchmark. Milestone 1.6 incorporates model interpretability using SHAP explainers (TreeExplainer and GradientExplainer), allowing operators to inspect feature attributions and understand individual RUL predictions.
+Milestone 1.3 builds on that layer by training Random Forest and XGBoost baselines, evaluating RMSE, MAE, R2, and NASA score, then saving model artifacts with metadata in a lightweight registry. Milestone 1.4 adds the sequence-model path: LSTM/GRU models that consume sliding windows of sensor history and can be trained on a GPU notebook. Milestone 1.5 adds a PatchTST-style transformer so the project can compare classic ML, recurrent sequence models, and transformer sequence models on the same benchmark. Milestone 1.6 incorporates model interpretability using SHAP explainers (TreeExplainer and GradientExplainer), allowing operators to inspect feature attributions and understand individual RUL predictions. Milestone 2.1 turns the registry into a standalone serving API with `/health`, `/models`, and XGBoost-backed `/predict/rul`.
 
 See `ROADMAP.md` for the full technical plan.
